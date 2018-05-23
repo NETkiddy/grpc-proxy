@@ -58,18 +58,18 @@ type handler struct {
 // It is invoked like any gRPC server stream and uses the gRPC server framing to get and receive bytes from the wire,
 // forwarding it to a ClientStream established against the relevant ClientConn.
 func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error {
-	fullMethodName, ok := grpc.MethodFromServerStream(serverStream) 
+	fullMethodName, ok := grpc.MethodFromServerStream(serverStream)
 	if !ok {
 		return grpc.Errorf(codes.Internal, "failed to get method from server stream")
 	}
 	// We require that the director's returned context inherits from the serverStream.Context().
 	outgoingCtx, backendConn, err := s.director(serverStream.Context(), fullMethodName)
-	defer backendConn.Close()
-
-	clientCtx, clientCancel := context.WithCancel(outgoingCtx)
 	if err != nil {
 		return err
 	}
+	defer backendConn.Close()
+
+	clientCtx, clientCancel := context.WithCancel(outgoingCtx)
 	// TODO(mwitkow): Add a `forwarded` header to metadata, https://en.wikipedia.org/wiki/X-Forwarded-For.
 	clientStream, err := grpc.NewClientStream(clientCtx, clientStreamDescForProxying, backendConn, fullMethodName)
 	if err != nil {
